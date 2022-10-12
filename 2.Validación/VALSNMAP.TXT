@@ -1,0 +1,450 @@
+      ******************************************************************
+      *     I D E N T I F I C A T I O N  D I V I S I O N               *
+      ******************************************************************
+       IDENTIFICATION DIVISION.
+      *
+       PROGRAM-ID.   VALSNMAP.
+       AUTHOR.       CAJA.
+       DATE-WRITTEN. 03/10/2022.
+       DATE-COMPILED.
+      *
+      ******************************************************************
+      *     ENVIRONMENT DIVISION                                       *
+      ******************************************************************
+       ENVIRONMENT DIVISION.
+      *
+       CONFIGURATION SECTION.
+         SOURCE-COMPUTER.  IBM-3090.
+         OBJECT-COMPUTER.  IBM-3090.
+      *
+       SPECIAL-NAMES.
+            DECIMAL-POINT IS COMMA.
+      *
+       INPUT-OUTPUT SECTION.
+      *
+       FILE-CONTROL.
+      *
+           SELECT FENTRAD1
+               ASSIGN TO FENTRAD1
+               FILE STATUS IS FS-FENTRAD1.
+      *
+           SELECT FENTRAD2
+               ASSIGN TO FENTRAD2
+               FILE STATUS IS FS-FENTRAD2.
+      *
+           SELECT FSALIDA1
+               ASSIGN TO FSALIDA1
+               FILE STATUS IS FS-FSALIDA1.
+      *
+           SELECT FSALIDA2
+               ASSIGN TO FSALIDA2
+               FILE STATUS IS FS-FSALIDA2.
+      *
+      ******************************************************************
+      *     DATA DIVISION                                              *
+      ******************************************************************
+       DATA DIVISION.
+      *
+       FILE SECTION.
+      *
+       FD  FENTRAD1
+           BLOCK CONTAINS 0 RECORDS
+           LABEL RECORD ARE STANDARD
+           RECORDING MODE IS F
+           DATA RECORD IS REG-ENT1.
+
+       01  REG-ENT1           PIC X(68).
+      *
+       FD  FENTRAD2
+           BLOCK CONTAINS 0 RECORDS
+           LABEL RECORD ARE STANDARD
+           RECORDING MODE IS F
+           DATA RECORD IS REG-ENT2.
+
+       01  REG-ENT2            PIC X(440).
+      *
+       FD  FSALIDA1
+           BLOCK CONTAINS 0 RECORDS
+           LABEL RECORD ARE STANDARD
+           RECORDING MODE IS F
+           DATA RECORD IS REG-SAL1.
+
+       01  REG-SAL1            PIC X(440).
+      *
+       FD  FSALIDA2
+           BLOCK CONTAINS 0 RECORDS
+           LABEL RECORD ARE STANDARD
+           RECORDING MODE IS F
+           DATA RECORD IS REG-SAL2.
+
+       01  REG-SAL2            PIC X(440).
+      *
+      ******************************************************************
+      *     W O R K I N G   S T O R A G E                              *
+      ******************************************************************
+       WORKING-STORAGE SECTION.
+      *
+       01 CA-CONSTANTES-ALF.
+          05 CA-PGM                    PIC X(08) VALUE 'VALSNMAP'.
+          05 CA-00                     PIC X(02) VALUE '00'.
+          05 CA-10                     PIC X(02) VALUE '10'.
+          05 CA-88                     PIC X(02) VALUE '88'.
+          05 CA-99                     PIC X(02) VALUE '99'.
+      *
+       01 FS-FILE-STATUS.
+          05 FS-FENTRAD1               PIC X(02).
+          05 FS-FENTRAD2               PIC X(02).
+          05 FS-FSALIDA1               PIC X(02).
+          05 FS-FSALIDA2               PIC X(02).
+      *
+       01 WK-VARIABLES.
+          05 WK-LEIDOS-1               PIC 9(03) VALUE 000.
+          05 WK-LEIDOS-2               PIC 9(03) VALUE 000.
+          05 WK-ESCRITOS-1             PIC 9(03) VALUE 000.
+          05 WK-ESCRITOS-2             PIC 9(03) VALUE 000.
+
+      *
+      * SWITCHES PARA EL PROCESO
+       01 SWITCHES.
+          05 SW-ERROR                  PIC X(01) VALUE 'N'.
+             88 SI-ERROR                         VALUE 'S'.
+             88 NO-ERROR                         VALUE 'N'.
+      *
+          05 SW-FIN-FICHERO1           PIC X(01) VALUE 'N'.
+             88 SI-FIN-FICHERO1                  VALUE 'S'.
+             88 NO-FIN-FICHERO1                  VALUE 'N'.
+      *
+          05 SW-FIN-FICHERO2           PIC X(01) VALUE 'N'.
+             88 SI-FIN-FICHERO2                  VALUE 'S'.
+             88 NO-FIN-FICHERO2                  VALUE 'N'.
+      *
+       01 COMPANIAS.
+          05 ID-C                      PIC S9(9).
+          05 CLAVE1.
+             10 NUMERO-POLIZA          PIC X(9).
+          05 NOMBRE-COMPANIA           PIC X(55).
+      *
+       01 SEGUROS.
+          05 CLAVE2.
+             10 NUMERO-POLIZA-SE       PIC X(9).
+          05 TIPO                      PIC X(2).
+          05 FECHA-INICIO              PIC X(10).
+          05 FECHA-VENCIMIENTO         PIC X(10).
+          05 COND-PART                 PIC X(200).
+          05 OBSERVACIONES             PIC X(200).
+          05 DNI-CL                    PIC X(9).
+      *
+       01 SEGUROS-S.
+           05 S-NUMERO-POLIZA-SE       PIC X(9).
+           05 S-TIPO                   PIC X(2).
+           05 S-FECHA-INICIO           PIC X(10).
+           05 S-FECHA-VENCIMIENTO      PIC X(10).
+           05 S-COND-PART              PIC X(200).
+           05 S-OBSERVACIONES          PIC X(200).
+           05 S-DNI-CL                 PIC X(9).
+      *
+      ******************************************************************
+      *     PROCEDURE DIVISION                                         *
+      ******************************************************************
+       PROCEDURE DIVISION.
+      *
+           PERFORM 1000-INICIO
+              THRU 1000-INICIO-EXIT
+      *
+           PERFORM 2000-PROCESO
+              THRU 2000-PROCESO-EXIT
+             UNTIL SI-FIN-FICHERO1 AND SI-FIN-FICHERO2
+      *
+           PERFORM 3000-FIN
+              THRU 3000-FIN-EXIT.
+      *
+      ******************************************************************
+      *     1000-INICIO                                                *
+      ******************************************************************
+       1000-INICIO.
+      *
+           INITIALIZE COMPANIAS
+                      SEGUROS
+                      SEGUROS-S
+                      FS-FILE-STATUS
+      *
+           PERFORM 1100-ABRIR-ENTRADA
+              THRU 1100-ABRIR-ENTRADA-EXIT
+      *
+           PERFORM 1200-ABRIR-SALIDA
+              THRU 1200-ABRIR-SALIDA-EXIT
+      *
+           PERFORM 9000-LEER-FENTRAD1
+              THRU 9000-LEER-FENTRAD1-EXIT
+      *
+           PERFORM 9100-LEER-FENTRAD2
+              THRU 9100-LEER-FENTRAD2-EXIT
+
+           .
+       1000-INICIO-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      *    1100-ABRIR-ENTRADA                                          *
+      ******************************************************************
+      *
+       1100-ABRIR-ENTRADA.
+      *
+           OPEN INPUT  FENTRAD1
+                       FENTRAD2
+      *
+           IF FS-FENTRAD1 NOT = CA-00
+              DISPLAY 'ERROR ABRIENDO FENTRAD1'
+              DISPLAY 'FS-FENTRAD1: ' FS-FENTRAD1
+      *
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+           END-IF
+      *
+           IF FS-FENTRAD2 NOT = CA-00
+              DISPLAY 'ERROR ABRIENDO FENTRAD2'
+              DISPLAY 'FS-FENTRAD2: ' FS-FENTRAD2
+      *
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+           END-IF
+           .
+       1100-ABRIR-ENTRADA-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      *    1200-ABRIR-SALIDA                                           *
+      ******************************************************************
+       1200-ABRIR-SALIDA.
+      *
+           OPEN OUTPUT FSALIDA1
+                       FSALIDA2
+      *
+           IF FS-FSALIDA1  NOT = CA-00
+              DISPLAY 'ERROR ABRIENDO FSALIDA1'
+              DISPLAY 'FS DE FSALIDA1: ' FS-FSALIDA1
+      *
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+           END-IF
+      *
+           IF FS-FSALIDA2 NOT = CA-00
+              DISPLAY 'ERROR ABRIENDO FSALIDA2'
+              DISPLAY 'FS-FSALIDA2: ' FS-FSALIDA2
+      *
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+           END-IF
+           .
+       1200-ABRIR-SALIDA-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      *     2000-PROCESO                                               *
+      ******************************************************************
+       2000-PROCESO.
+      *
+           IF CLAVE1 = CLAVE2
+              PERFORM 2100-INFORMAR-SALIDA
+                 THRU 2100-INFORMAR-SALIDA-EXIT
+
+              PERFORM 2500-ESCRIBIR-SALIDA
+                 THRU 2500-ESCRIBIR-SALIDA-EXIT
+
+              PERFORM 9100-LEER-FENTRAD2
+                 THRU 9100-LEER-FENTRAD2-EXIT
+           ELSE
+               IF CLAVE1 < CLAVE2
+                  PERFORM 9000-LEER-FENTRAD1
+                     THRU 9000-LEER-FENTRAD1-EXIT
+
+               ELSE
+                  PERFORM 2100-INFORMAR-SALIDA
+                     THRU 2100-INFORMAR-SALIDA-EXIT
+
+                  PERFORM 2600-ESCRIBIR-DESCARTES
+                     THRU 2600-ESCRIBIR-DESCARTES-EXIT
+
+                  PERFORM 9100-LEER-FENTRAD2
+                     THRU 9100-LEER-FENTRAD2-EXIT
+               END-IF
+
+           END-IF
+           .
+       2000-PROCESO-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      *     2100-INFORMAR SALIDA                                       *
+      ******************************************************************
+      *
+       2100-INFORMAR-SALIDA.
+      *
+           DISPLAY 'INFORMAR SALIDA'
+           INITIALIZE SEGUROS-S
+      *
+           MOVE NUMERO-POLIZA-SE       TO S-NUMERO-POLIZA-SE
+           MOVE TIPO                   TO S-TIPO
+           MOVE FECHA-INICIO           TO S-FECHA-INICIO
+           MOVE FECHA-VENCIMIENTO      TO S-FECHA-VENCIMIENTO
+           MOVE COND-PART              TO S-COND-PART
+           MOVE OBSERVACIONES          TO S-OBSERVACIONES
+           MOVE DNI-CL                 TO S-DNI-CL
+
+           .
+       2100-INFORMAR-SALIDA-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      *     2500-ESCRIBIR-SALIDA                                       *
+      ******************************************************************
+      *
+       2500-ESCRIBIR-SALIDA.
+      *
+           DISPLAY 'ESCRIBIR SALIDA'
+           WRITE REG-SAL1 FROM SEGUROS-S
+      *
+           IF FS-FSALIDA1 = CA-00
+              ADD 1 TO WK-ESCRITOS-1
+           ELSE
+              DISPLAY 'ERROR ESCRIBIENDO LA SALIDA'
+              DISPLAY 'FS-FSALIDA1: ' FS-FSALIDA1
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+           END-IF
+           .
+       2500-ESCRIBIR-SALIDA-EXIT.
+           EXIT.
+      ******************************************************************
+      *     2600-ESCRIBIR-DESCARTES                                    *
+      ******************************************************************
+      *
+        2600-ESCRIBIR-DESCARTES.
+      *
+           DISPLAY 'ESCRIBIR DESCARTES'
+           WRITE REG-SAL2 FROM SEGUROS-S
+      *
+           IF FS-FSALIDA2 = CA-00
+              ADD 1 TO WK-ESCRITOS-2
+           ELSE
+              DISPLAY 'ERROR DESCARTES'
+              DISPLAY 'FS-FSALIDA2: ' FS-FSALIDA2
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+           END-IF
+           .
+        2600-ESCRIBIR-DESCARTES-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      *     9000-LEER-ENTRAD1                                          *
+      ******************************************************************
+      *
+       9000-LEER-FENTRAD1.
+      *
+           INITIALIZE COMPANIAS
+      *
+           READ FENTRAD1 INTO COMPANIAS
+
+           IF FS-FENTRAD1 = CA-00
+               ADD 1                    TO WK-LEIDOS-1
+           ELSE
+               IF FS-FENTRAD1 = CA-10
+                  MOVE HIGH-VALUES      TO CLAVE1
+                  SET SI-FIN-FICHERO1   TO TRUE
+               ELSE
+
+                  PERFORM 3000-FIN
+                     THRU 3000-FIN-EXIT
+               END-IF
+            END-IF
+
+
+           .
+       9000-LEER-FENTRAD1-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      *     9100-LEER-ENTRAD2                                          *
+      ******************************************************************
+      *
+       9100-LEER-FENTRAD2.
+      *
+           INITIALIZE SEGUROS
+      *
+           READ FENTRAD2 INTO SEGUROS
+      *
+           IF FS-FENTRAD2 = CA-00
+               ADD 1                    TO WK-LEIDOS-2
+           ELSE
+               IF FS-FENTRAD2 = CA-10
+                  MOVE HIGH-VALUES      TO CLAVE2
+                  SET SI-FIN-FICHERO2   TO TRUE
+               ELSE
+                  PERFORM 3000-FIN
+                     THRU 3000-FIN-EXIT
+               END-IF
+            END-IF
+      *
+           .
+       9100-LEER-FENTRAD2-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      *     3000-FIN                                                   *
+      ******************************************************************
+       3000-FIN.
+      *
+           PERFORM 3100-CERRAR-FICHEROS
+              THRU 3100-CERRAR-FICHEROS-EXIT
+
+           PERFORM 3200-GRABAR-ESTADIS
+              THRU 3200-GRABAR-ESTADIS-EXIT
+
+           STOP RUN.
+       3000-FIN-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      *     3100-CERRAR-FICHEROS                                       *
+      ******************************************************************
+       3100-CERRAR-FICHEROS.
+      *
+           CLOSE FSALIDA1
+                 FSALIDA2
+                 FENTRAD2
+                 FENTRAD1
+      *
+           IF FS-FSALIDA1  NOT = CA-00
+              SET SI-ERROR    TO TRUE
+           END-IF
+           IF FS-FSALIDA2  NOT = CA-00
+              SET SI-ERROR    TO TRUE
+           END-IF
+           IF FS-FENTRAD1 NOT = CA-00
+              SET SI-ERROR    TO TRUE
+           END-IF
+           IF FS-FENTRAD2 NOT = CA-00
+              SET SI-ERROR    TO TRUE
+           END-IF
+      *
+           .
+       3100-CERRAR-FICHEROS-EXIT.
+           EXIT.
+      ******************************************************************
+      *     3200-GRABAR-ESTADIS                                        *
+      ******************************************************************
+       3200-GRABAR-ESTADIS.
+      *
+           DISPLAY '*******************************'
+           DISPLAY '*  ESTADISTICAS SALIDA        *'
+           DISPLAY '* REGISTROS LEIDOS F1:        *' WK-LEIDOS-1
+           DISPLAY '* REGISTROS LEIDOS F2:        *' WK-LEIDOS-2
+           DISPLAY '* REGISTROS ESCRITOS S:       *' WK-ESCRITOS-1
+           DISPLAY '* REGISTROS ESCRITOS S:       *' WK-ESCRITOS-2
+           DISPLAY '*******************************'
+      *
+           .
+       3200-GRABAR-ESTADIS-EXIT.
+           EXIT.
+      *

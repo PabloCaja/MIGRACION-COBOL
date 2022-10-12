@@ -1,0 +1,643 @@
+      ******************************************************************
+      **      I D E N T I F I C A T I O N   D I V I S I O N           **
+      ******************************************************************
+       IDENTIFICATION DIVISION.
+      *----------------------------------------------------------------*
+       PROGRAM-ID. TRACLIM.
+       AUTHOR. CAJA.
+       DATE-WRITTEN. 04/09/2022.
+       DATE-COMPILED.
+      *
+      ******************************************************************
+      **      E N V I R O N M E N T   D I V I S I O N                 **
+      ******************************************************************
+       ENVIRONMENT DIVISION.
+      *----------------------------------------------------------------*
+       CONFIGURATION SECTION.
+         SOURCE-COMPUTER.  IBM-3090.
+         OBJECT-COMPUTER.  IBM-3090.
+      *
+       SPECIAL-NAMES.
+           DECIMAL-POINT IS COMMA.
+      *
+       INPUT-OUTPUT SECTION.
+      * SE DECLARAN LOS FICHEROS DE ENTRADA Y SALIDA
+      *
+       FILE-CONTROL.
+      *
+           SELECT FENTRAD1
+              ASSIGN TO FENTRAD1
+              FILE STATUS IS FS-FENTRAD1.
+      *
+           SELECT FSALIDA1
+              ASSIGN TO FSALIDA1
+              FILE STATUS IS FS-FSALIDA1.
+      *
+           SELECT FSALIDA2
+              ASSIGN TO FSALIDA2
+              FILE STATUS IS FS-FSALIDA2.
+      *
+           SELECT FSALIDA3
+              ASSIGN TO FSALIDA3
+              FILE STATUS IS FS-FSALIDA3.
+
+      ******************************************************************
+      **      D A T A   D I V I S I O N                               **
+      ******************************************************************
+       DATA DIVISION.
+      *
+       FILE SECTION.
+      *
+       FD FENTRAD1
+            BLOCK CONTAINS 0 RECORDS
+            LABEL RECORD ARE STANDARD
+            RECORDING MODE IS F
+            DATA RECORD IS REG-ENT1.
+
+       01 REG-ENT1             PIC X(440).
+      *
+       FD FSALIDA1
+            BLOCK CONTAINS 0 RECORDS
+            LABEL RECORD ARE STANDARD
+            RECORDING MODE IS F
+            DATA RECORD IS REG-SAL-AUTO.
+
+       01 REG-SAL-AUTO             PIC X(285).
+      *
+       FD FSALIDA2
+            BLOCK CONTAINS 0 RECORDS
+            LABEL RECORD ARE STANDARD
+            RECORDING MODE IS F
+            DATA RECORD IS REG-SAL-HOGAR.
+
+       01 REG-SAL-HOGAR            PIC X(280).
+      *
+       FD FSALIDA3
+            BLOCK CONTAINS 0 RECORDS
+            LABEL RECORD ARE STANDARD
+            RECORDING MODE IS F
+            DATA RECORD IS REG-SAL-VIDA.
+
+       01 REG-SAL-VIDA              PIC X(255).
+      *
+      *----------------------------------------------------------------*
+       WORKING-STORAGE SECTION.
+      *--------------------- CONSTANTES ALFANUMERICAS -----------------*
+       01 CA-CONSTANTES-ALFANUMERICAS.
+          05 CA-PGM               PIC X(08) VALUE 'TRACLIM'.
+          05 CA-00                PIC X(02) VALUE '00'.
+          05 CA-10                PIC X(02) VALUE '10'.
+          05 CA-88                PIC X(02) VALUE '88'.
+          05 CA-99                PIC X(02) VALUE '99'.
+      *--------------------- FILE STATUS ------------------------------*
+       01 FS-FILE-STATUS.
+          05 FS-FENTRAD1           PIC X(02).
+          05 FS-FSALIDA1           PIC X(02).
+          05 FS-FSALIDA2           PIC X(02).
+          05 FS-FSALIDA3           PIC X(02).
+      *--------------------- CONTADORES -------------------------------*
+       01 WK-VARIABLES.
+          05 WK-LEIDOS-1               PIC 9(03) VALUE 000.
+          05 WK-ESCRITOS-1             PIC 9(03) VALUE 000.
+          05 WK-ESCRITOS-2             PIC 9(03) VALUE 000.
+          05 WK-ESCRITOS-3             PIC 9(03) VALUE 000.
+      *
+      *--------------------- VARIABLES --------------------------------*
+      *VARIABLES DELIMITADORAS PARA UNSTRING
+       01 WK-DELIMITADORES.
+          05 WK-DEL-COMA               PIC X(01) VALUE ','.
+          05 WK-DEL-ESPACIO            PIC X(01) VALUE ' '.
+          05 WK-DEL-COBER              PIC X(11) VALUE 'COBERTURAS:'.
+          05 WK-DEL-PRIMA              PIC X(06) VALUE 'PRIMA:'.
+          05 WK-DEL-EDAD               PIC X(05) VALUE 'EDAD:'.
+          05 WK-DEL-CONTENID           PIC X(11) VALUE 'CONTENIDO:'.
+          05 WK-DEL-CONTINEN           PIC X(11) VALUE 'CONTINENTE:'.
+          05 WK-DEL-CATEGORI           PIC X(11) VALUE 'CATEGORIA:'.
+      *
+       01 WK-AUXILIARES.
+          05 WK-ELIMINAR               PIC X(30) VALUE SPACES.
+          05 WK-PRIMA-SOLA             PIC 9(15)V9(2).
+          05 WK-EDAD-SOLA              PIC S9(9).
+          05 WK-COBER-SOLA             PIC X(200) VALUE SPACES.
+          05 WK-CATEG-SOLA             PIC X(30) VALUE SPACES.
+          05 WK-CONTI-SOLA             PIC S9(15)V9(2).
+          05 WK-CONTEN-SOLA            PIC S9(15)V9(2).
+          05 WK-PRIMA                  PIC X(25) VALUE SPACES.
+          05 WK-EDAD                   PIC X(20) VALUE SPACES.
+          05 WK-COBER                  PIC X(200) VALUE SPACES.
+          05 WK-CATEG                  PIC X(30) VALUE SPACES.
+          05 WK-CONTI                  PIC X(30) VALUE SPACES.
+          05 WK-CONTEN                 PIC X(30) VALUE SPACES.
+
+      * COPYS DE ENTRADA Y SALIDA
+       01 SEGUROS.
+          05 NUMERO-POLIZA     PIC X(9).
+          05 TIPO              PIC X(2).
+          05 FECHA-INICIO      PIC X(10).
+          05 FECHA-VENCIMIENTO PIC X(10).
+          05 COND-PART         PIC X(200).
+          05 OBSERVACIONES     PIC X(200).
+          05 DNI-CL            PIC X(9).
+      *
+       01 AUTO-MAPFRE.
+          05 POLIZA-AUTO              PIC X(9).
+          05 PRIMA-AUTO               PIC S9(15)V9(2).
+          05 EDAD-AUTO                PIC S9(9).
+          05 CATEGORIA-AUTO           PIC X(30).
+          05 COBERTURAS-AUTO          PIC X(200).
+          05 FECHA-INICIO-AUTO        PIC X(10).
+          05 FECHA-VENCIMIENTO-AUTO   PIC X(10).
+      *
+       01 HOGAR-MAPFRE.
+          05 POLIZA-HOGAR             PIC X(9).
+          05 PRIMA-HOGAR              PIC S9(15)V9(2).
+          05 CONTINENTE-HOGAR         PIC S9(15)V9(2).
+          05 CONTENIDO-HOGAR          PIC S9(15)V9(2).
+          05 COBERTURAS-HOGAR         PIC X(200).
+          05 FECHA-INICIO-HOGAR       PIC X(10).
+          05 FECHA-VENCIMIENTO-HOGAR  PIC X(10).
+      *
+       01 VIDA-MAPFRE.
+          05 POLIZA-VIDA              PIC X(9).
+          05 PRIMA-VIDA               PIC S9(15)V9(2).
+          05 EDAD-VIDA                PIC S9(9).
+          05 COBERTURAS-VIDA          PIC X(200).
+          05 FECHA-INICIO-VIDA        PIC X(10).
+          05 FECHA-VENCIMIENTO-VIDA   PIC X(10).
+      *
+       01 WK-INDICES.
+          05 IND                       PIC 9(03).
+      *
+       01 WK-SQLCODE                   PIC -999.
+      * ------------------SWITCHES PARA EL PROCESO---------------------*
+       01 SWITCHES.
+          05 SW-ERROR                  PIC X(01) VALUE 'N'.
+             88 SI-ERROR                         VALUE 'S'.
+             88 NO-ERROR                         VALUE 'N'.
+      *
+          05 SW-FIN-FICHERO1           PIC X(01) VALUE 'N'.
+             88 SI-FIN-FICHERO1                  VALUE 'S'.
+             88 NO-FIN-FICHERO1                  VALUE 'N'.
+      *
+      ******************************************************************
+      **      P R O C E D U R E   D I V I S I O N                     **
+      ******************************************************************
+       PROCEDURE DIVISION.
+      *----------------------------------------------------------------*
+           PERFORM 1000-INICIO
+              THRU 1000-INICIO-EXIT
+      *
+           PERFORM 2000-PROCESO
+              THRU 2000-PROCESO-EXIT
+              UNTIL SI-FIN-FICHERO1
+      *
+           PERFORM 3000-FIN
+              THRU 3000-FIN-EXIT
+           .
+      *--------------------- INICIO -----------------------------------*
+       1000-INICIO.
+           INITIALIZE FS-FILE-STATUS
+                      SEGUROS
+                      AUTO-MAPFRE
+                      HOGAR-MAPFRE
+                      VIDA-MAPFRE
+      *
+           SET NO-ERROR          TO TRUE
+      *
+           PERFORM 1050-ABRIR-SEGUROS
+              THRU 1050-ABRIR-SEGUROS-EXIT
+      *
+           PERFORM 1100-ABRIR-AUTO
+              THRU 1100-ABRIR-AUTO-EXIT
+      *
+           PERFORM 1200-ABRIR-HOGAR
+              THRU 1200-ABRIR-HOGAR-EXIT
+      *
+           PERFORM 1300-ABRIR-VIDA
+              THRU 1300-ABRIR-VIDA-EXIT
+      *
+           PERFORM 9000-LEER-FENTRAD1
+              THRU 9000-LEER-FENTRAD1-EXIT
+           .
+       1000-INICIO-EXIT.
+           EXIT.
+      *
+      *--------------------- ABRIR-FICHEROS ---------------------------*
+      ******************************************************************
+      *         1100-ABRIR-SEGUROS                                        *
+      ******************************************************************
+      *
+       1050-ABRIR-SEGUROS.
+      *
+           OPEN INPUT FENTRAD1
+
+           IF FS-FENTRAD1 = CA-00
+              CONTINUE
+           ELSE
+              SET SI-ERROR            TO TRUE
+              DISPLAY 'ERROR EN ABRIR-SEGUROS'
+              DISPLAY 'FS-FSALIDA1: ' FS-FENTRAD1
+
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+
+           END-IF
+      *
+           .
+       1050-ABRIR-SEGUROS-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      *         1100-ABRIR-AUTO                                        *
+      ******************************************************************
+      *
+       1100-ABRIR-AUTO.
+      *
+           OPEN OUTPUT FSALIDA1
+
+           IF FS-FSALIDA1 = CA-00
+              CONTINUE
+           ELSE
+              SET SI-ERROR            TO TRUE
+              DISPLAY 'ERROR EN ABRIR-AUTO'
+              DISPLAY 'FS-FSALIDA1: ' FS-FSALIDA1
+
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+
+           END-IF
+      *
+           .
+       1100-ABRIR-AUTO-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      *         1200-ABRIR-HOGAR                                       *
+      ******************************************************************
+      *
+       1200-ABRIR-HOGAR.
+      *
+           OPEN OUTPUT FSALIDA2
+
+           IF FS-FSALIDA2 = CA-00
+              CONTINUE
+           ELSE
+              SET SI-ERROR            TO TRUE
+              DISPLAY 'ERROR EN ABRIR-HOGAR'
+              DISPLAY 'FS-FSALIDA2: ' FS-FSALIDA2
+
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+
+           END-IF
+      *
+           .
+       1200-ABRIR-HOGAR-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      *         1300-ABRIR-VIDA                                        *
+      ******************************************************************
+      *
+       1300-ABRIR-VIDA.
+      *
+           OPEN OUTPUT FSALIDA3
+
+           IF FS-FSALIDA3 = CA-00
+              CONTINUE
+           ELSE
+              SET SI-ERROR            TO TRUE
+              DISPLAY 'ERROR EN ABRIR-VIDA'
+              DISPLAY 'FS-FSALIDA3: ' FS-FSALIDA3
+
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+
+           END-IF
+      *
+           .
+       1300-ABRIR-VIDA-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      *     2000-PROCESO                                               *
+      ******************************************************************
+       2000-PROCESO.
+      *
+           PERFORM 2100-INFORMAR-SALIDA
+              THRU 2100-INFORMAR-SALIDA-EXIT
+      *
+           PERFORM 9000-LEER-FENTRAD1
+              THRU 9000-LEER-FENTRAD1-EXIT
+      *
+           .
+       2000-PROCESO-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      *     2100-INFORMAR SALIDA                                       *
+      ******************************************************************
+      *
+       2100-INFORMAR-SALIDA.
+      *
+           DISPLAY 'INFORMAR SALIDA'
+           INITIALIZE AUTO-MAPFRE
+                      HOGAR-MAPFRE
+                      VIDA-MAPFRE
+
+           EVALUATE TIPO
+              WHEN '03'
+                 PERFORM 2200-INFORMAR-AUTO
+                    THRU 2200-INFORMAR-AUTO-EXIT
+
+              WHEN '02'
+                 PERFORM 2300-INFORMAR-HOGAR
+                    THRU 2300-INFORMAR-HOGAR-EXIT
+
+              WHEN '01'
+                 PERFORM 2400-INFORMAR-VIDA
+                    THRU 2400-INFORMAR-VIDA-EXIT
+
+           END-EVALUATE
+
+           .
+       2100-INFORMAR-SALIDA-EXIT.
+           EXIT.
+      ******************************************************************
+      *     2100-INFORMAR SALIDA                                       *
+      ******************************************************************
+      *
+       2200-INFORMAR-AUTO.
+      *
+           DISPLAY 'INFORMAR AUTO'
+           INITIALIZE WK-AUXILIARES
+      *
+           UNSTRING COND-PART DELIMITED BY WK-DEL-PRIMA OR
+                    WK-DEL-EDAD OR WK-DEL-COBER OR WK-DEL-CATEGORI
+               INTO WK-ELIMINAR, WK-PRIMA, WK-EDAD, WK-COBER, WK-CATEG
+      *
+           UNSTRING WK-PRIMA DELIMITED BY WK-DEL-ESPACIO OR WK-DEL-COMA
+               INTO WK-ELIMINAR WK-PRIMA-SOLA
+
+           UNSTRING WK-EDAD  DELIMITED BY WK-DEL-ESPACIO OR WK-DEL-COMA
+               INTO WK-ELIMINAR WK-EDAD-SOLA
+
+           UNSTRING WK-COBER DELIMITED BY WK-DEL-ESPACIO OR WK-DEL-COMA
+               INTO WK-ELIMINAR WK-COBER-SOLA
+
+           UNSTRING WK-CATEG DELIMITED BY WK-DEL-ESPACIO OR WK-DEL-COMA
+               INTO WK-ELIMINAR WK-CATEG-SOLA
+
+           MOVE NUMERO-POLIZA      TO POLIZA-AUTO
+           MOVE WK-PRIMA-SOLA      TO PRIMA-AUTO
+           MOVE WK-EDAD-SOLA       TO EDAD-AUTO
+           MOVE WK-CATEG-SOLA      TO CATEGORIA-AUTO
+           MOVE WK-COBER-SOLA      TO COBERTURAS-AUTO
+           MOVE FECHA-INICIO       TO FECHA-INICIO-AUTO
+           MOVE FECHA-VENCIMIENTO  TO FECHA-VENCIMIENTO-AUTO
+
+           PERFORM 2500-AUTO-MAPFRE
+              THRU 2500-AUTO-MAPFRE-EXIT
+      *
+           .
+       2200-INFORMAR-AUTO-EXIT.
+           EXIT.
+      ******************************************************************
+      *     2100-INFORMAR SALIDA                                       *
+      ******************************************************************
+      *
+       2300-INFORMAR-HOGAR.
+      *
+           DISPLAY 'INFORMAR HOGAR'
+           INITIALIZE WK-AUXILIARES
+      *
+           UNSTRING COND-PART DELIMITED BY WK-DEL-PRIMA OR
+                    WK-DEL-CONTENID OR WK-DEL-COBER OR WK-DEL-CONTINEN
+               INTO WK-ELIMINAR, WK-PRIMA, WK-COBER, WK-CONTEN, WK-CONTI
+      *
+           UNSTRING WK-PRIMA DELIMITED BY WK-DEL-ESPACIO OR WK-DEL-COMA
+               INTO WK-ELIMINAR WK-PRIMA-SOLA
+
+           UNSTRING WK-COBER DELIMITED BY WK-DEL-ESPACIO OR WK-DEL-COMA
+               INTO WK-ELIMINAR WK-COBER-SOLA
+
+           UNSTRING WK-CONTI DELIMITED BY WK-DEL-ESPACIO OR WK-DEL-COMA
+               INTO WK-ELIMINAR WK-CONTI-SOLA
+
+           UNSTRING WK-CONTEN DELIMITED BY WK-DEL-ESPACIO OR WK-DEL-COMA
+               INTO WK-ELIMINAR WK-CONTEN-SOLA
+
+           MOVE NUMERO-POLIZA      TO POLIZA-HOGAR
+           MOVE WK-PRIMA-SOLA      TO PRIMA-HOGAR
+           MOVE WK-CONTI-SOLA      TO CONTINENTE-HOGAR
+           MOVE WK-CONTEN-SOLA     TO CONTENIDO-HOGAR
+           MOVE WK-COBER-SOLA      TO COBERTURAS-HOGAR
+           MOVE FECHA-INICIO       TO FECHA-INICIO-HOGAR
+           MOVE FECHA-VENCIMIENTO  TO FECHA-VENCIMIENTO-HOGAR
+
+           PERFORM 2600-HOGAR-MAPFRE
+              THRU 2600-HOGAR-MAPFRE-EXIT
+      *
+           .
+       2300-INFORMAR-HOGAR-EXIT.
+           EXIT.
+      ******************************************************************
+      *     2100-INFORMAR SALIDA                                       *
+      ******************************************************************
+      *
+       2400-INFORMAR-VIDA.
+      *
+           DISPLAY 'INFORMAR VIDA'
+           INITIALIZE WK-AUXILIARES
+      *
+           UNSTRING COND-PART DELIMITED BY WK-DEL-PRIMA OR
+                    WK-DEL-EDAD OR WK-DEL-COBER
+               INTO WK-ELIMINAR, WK-PRIMA, WK-EDAD, WK-COBER, WK-CATEG
+      *
+           UNSTRING WK-PRIMA DELIMITED BY WK-DEL-ESPACIO OR WK-DEL-COMA
+               INTO WK-ELIMINAR WK-PRIMA-SOLA
+
+           UNSTRING WK-EDAD  DELIMITED BY WK-DEL-ESPACIO OR WK-DEL-COMA
+               INTO WK-ELIMINAR WK-EDAD-SOLA
+
+           UNSTRING WK-COBER DELIMITED BY WK-DEL-ESPACIO OR WK-DEL-COMA
+               INTO WK-ELIMINAR WK-COBER-SOLA
+
+           MOVE NUMERO-POLIZA      TO POLIZA-VIDA
+           MOVE WK-PRIMA-SOLA      TO PRIMA-VIDA
+           MOVE WK-EDAD-SOLA       TO EDAD-VIDA
+           MOVE WK-COBER-SOLA      TO COBERTURAS-VIDA
+           MOVE FECHA-INICIO       TO FECHA-INICIO-VIDA
+           MOVE FECHA-VENCIMIENTO  TO FECHA-VENCIMIENTO-VIDA
+
+           PERFORM 2700-VIDA-MAPFRE
+              THRU 2700-VIDA-MAPFRE-EXIT
+      *
+           .
+       2400-INFORMAR-VIDA-EXIT.
+           EXIT.
+      ******************************************************************
+      *     2200-ESCRIBIR-SALIDA                                       *
+      ******************************************************************
+      *
+       2500-AUTO-MAPFRE.
+      *
+           WRITE REG-SAL-AUTO FROM AUTO-MAPFRE
+
+           IF FS-FSALIDA1 = CA-00
+              ADD 1             TO WK-ESCRITOS-1
+           ELSE
+              SET SI-ERROR      TO TRUE
+              DISPLAY 'ERROR ESCRIBIENDO AUTO-MAPFRE'
+              DISPLAY 'FS-FSALIDA1: ' FS-FSALIDA1
+      *
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+           END-IF
+      *
+           .
+       2500-AUTO-MAPFRE-EXIT.
+           EXIT.
+      ******************************************************************
+      *     2200-ESCRIBIR-SALIDA                                       *
+      ******************************************************************
+      *
+       2600-HOGAR-MAPFRE.
+      *
+           WRITE REG-SAL-HOGAR FROM HOGAR-MAPFRE
+
+           IF FS-FSALIDA2 = CA-00
+              ADD 1             TO WK-ESCRITOS-2
+           ELSE
+              SET SI-ERROR      TO TRUE
+              DISPLAY 'ERROR ESCRIBIENDO HOGAR-MAPFRE'
+              DISPLAY 'FS-FSALIDA2: ' FS-FSALIDA2
+      *
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+           END-IF
+      *
+           .
+       2600-HOGAR-MAPFRE-EXIT.
+           EXIT.
+      ******************************************************************
+      *     2200-ESCRIBIR-SALIDA                                       *
+      ******************************************************************
+      *
+       2700-VIDA-MAPFRE.
+      *
+           WRITE REG-SAL-VIDA FROM VIDA-MAPFRE
+
+           IF FS-FSALIDA3 = CA-00
+              ADD 1             TO WK-ESCRITOS-3
+           ELSE
+              SET SI-ERROR      TO TRUE
+              DISPLAY 'ERROR ESCRIBIENDO VIDA-MAPFRE'
+              DISPLAY 'FS-FSALIDA3: ' FS-FSALIDA3
+      *
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+           END-IF
+      *
+           .
+       2700-VIDA-MAPFRE-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      *     9000-LEER-ENTRAD1                                          *
+      ******************************************************************
+      *
+       9000-LEER-FENTRAD1.
+      *
+           INITIALIZE SEGUROS
+      *
+           READ FENTRAD1 INTO SEGUROS
+
+           IF FS-FENTRAD1 = CA-00
+               ADD 1                    TO WK-LEIDOS-1
+           ELSE
+               IF FS-FENTRAD1 = CA-10
+                  SET SI-FIN-FICHERO1   TO TRUE
+               ELSE
+
+                  PERFORM 3000-FIN
+                     THRU 3000-FIN-EXIT
+               END-IF
+            END-IF
+
+
+           .
+       9000-LEER-FENTRAD1-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      *     3000-FIN                                                   *
+      ******************************************************************
+       3000-FIN.
+      *
+           PERFORM 3100-CERRAR-FICHEROS
+              THRU 3100-CERRAR-FICHEROS-EXIT
+      *
+           PERFORM 3200-GRABAR-ESTADIS
+              THRU 3200-GRABAR-ESTADIS-EXIT
+      *
+           STOP RUN.
+       3000-FIN-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      *     3100-CERRAR-FICHEROS                                       *
+      ******************************************************************
+       3100-CERRAR-FICHEROS.
+      *
+           CLOSE FENTRAD1
+                 FSALIDA1
+                 FSALIDA2
+                 FSALIDA3
+      *
+           IF FS-FENTRAD1  NOT = CA-00
+              SET SI-ERROR    TO TRUE
+              DISPLAY 'ERROR CERRANDO FENTRAD1'
+              DISPLAY 'FS-FENTRAD1: ' FS-FENTRAD1
+           END-IF
+      *
+           IF FS-FSALIDA1  NOT = CA-00
+              SET SI-ERROR    TO TRUE
+              DISPLAY 'ERROR CERRANDO FSALIDA1'
+              DISPLAY 'FS-FSALIDA1: ' FS-FSALIDA1
+           END-IF
+      *
+           IF FS-FSALIDA2  NOT = CA-00
+              SET SI-ERROR    TO TRUE
+              DISPLAY 'ERROR CERRANDO FSALIDA2'
+              DISPLAY 'FS-FSALIDA2: ' FS-FSALIDA2
+           END-IF
+      *
+           IF FS-FSALIDA3  NOT = CA-00
+              SET SI-ERROR    TO TRUE
+              DISPLAY 'ERROR CERRANDO FSALIDA3'
+              DISPLAY 'FS-FSALIDA: ' FS-FSALIDA3
+           END-IF
+      *
+           .
+       3100-CERRAR-FICHEROS-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      *     3200-GRABAR-ESTADIS                                        *
+      ******************************************************************
+       3200-GRABAR-ESTADIS.
+      *
+           DISPLAY '*******************************'
+           DISPLAY '*  ESTADISTICAS SALIDA        *'
+           DISPLAY '* REGISTROS LEIDOS F1:        *' WK-LEIDOS-1
+           DISPLAY '* REGISTROS ESCRITOS S:       *' WK-ESCRITOS-1
+           DISPLAY '* REGISTROS ESCRITOS S:       *' WK-ESCRITOS-2
+           DISPLAY '* REGISTROS ESCRITOS S:       *' WK-ESCRITOS-3
+
+           DISPLAY '*******************************'
+      *
+           .
+       3200-GRABAR-ESTADIS-EXIT.
+           EXIT.
+      *

@@ -1,0 +1,350 @@
+      ******************************************************************
+      **      I D E N T I F I C A T I O N   D I V I S I O N           **
+      ******************************************************************
+       IDENTIFICATION DIVISION.
+      *----------------------------------------------------------------*
+       PROGRAM-ID. EXTSIN.
+       AUTHOR. CAJA.
+       DATE-WRITTEN. 27/09/2022.
+       DATE-COMPILED. 27/09/2022.
+      *
+      ******************************************************************
+      **      E N V I R O N M E N T   D I V I S I O N                 **
+      ******************************************************************
+       ENVIRONMENT DIVISION.
+      *----------------------------------------------------------------*
+       CONFIGURATION SECTION.
+         SOURCE-COMPUTER.  IBM-3090.
+         OBJECT-COMPUTER.  IBM-3090.
+      *
+       SPECIAL-NAMES.
+           DECIMAL-POINT IS COMMA.
+      *
+       INPUT-OUTPUT SECTION.
+      * SE DECLARAN LOS FICHEROS DE ENTRADA Y SALIDA
+      *
+       FILE-CONTROL.
+      * OBLIGATORIO, PARA DECLARAR LOS FICHEROS DE ENTRADA Y SALIDA
+           SELECT FSALIDA
+              ASSIGN TO SALIDA
+              FILE STATUS IS FS-FSALIDA.
+      ******************************************************************
+      **      D A T A   D I V I S I O N                               **
+      ******************************************************************
+       DATA DIVISION.
+      *----------------------------------------------------------------*
+       FILE SECTION.
+      *
+       FD FSALIDA
+            BLOCK CONTAINS 0 RECORDS
+            LABEL RECORD ARE STANDARD
+            RECORDING MODE IS F
+            DATA RECORD IS REG-SAL.
+
+       01 REG-SAL             PIC X(97).
+      *----------------------------------------------------------------*
+       WORKING-STORAGE SECTION.
+      *--------------------- CONSTANTES ALFANUMERICAS -----------------*
+       01 CA-CONSTANTES-ALFANUMERICAS.
+          05 CA-PGM               PIC X(06) VALUE 'EXTSIN'.
+          05 CA-00                PIC X(02) VALUE '00'.
+          05 CA-10                PIC X(02) VALUE '10'.
+          05 CA-88                PIC X(02) VALUE '88'.
+          05 CA-99                PIC X(02) VALUE '99'.
+      *--------------------- CONSTANTES NUMERICAS ---------------------*
+       01 CN-CONSTANTES-NUMERICAS.
+          05 CN-100               PIC 9(03)         VALUE 100.
+      *--------------------- FILE STATUS ------------------------------*
+       01 FS-FILE-STATUS.
+          05 FS-FSALIDA           PIC X(02).
+      *--------------------- CONTADORES -------------------------------*
+       01 CONT-CONTADORES.
+          05 CONT-REG-ESCRITOS         PIC 9(02) VALUE ZEROS.
+          05 CONT-REG-FETCH            PIC 9(02) VALUE ZEROS.
+      *--------------------- VARIABLES --------------------------------*
+      *
+       01 WK-SALIDA.
+          05 S-ID-SINIESTRO    PIC S9(9).
+          05 S-FECHA-SINIESTRO PIC X(10).
+          05 S-CAUSAS          PIC X(55).
+          05 S-ACEPTADO        PIC X(1).
+          05 S-INDEMNIZACION   PIC S9(15)V9(2).
+          05 S-NUMERO-POLIZA   PIC X(9).
+          05 S-DNI-PERITO      PIC X(9).
+      *
+       01 WK-INDICES.
+          05 IND                       PIC 9(03).
+      *
+       01 WK-SQLCODE                   PIC -999.
+
+      * ------------------SWITCHES PARA EL PROCESO---------------------*
+       01 SWITCHES.
+          05 SW-ERROR                  PIC X(01) VALUE 'N'.
+             88 SI-ERROR                         VALUE 'S'.
+             88 NO-ERROR                         VALUE 'N'.
+      *
+          05 SW-FIN-CURSOR             PIC X(01) VALUE 'N'.
+             88 SI-FIN-CURSOR                    VALUE 'S'.
+             88 NO-FIN-CURSOR                    VALUE 'N'.
+      *---------------- SQLCA ------------------------
+           EXEC SQL
+               INCLUDE SQLCA
+           END-EXEC.
+      *---------------- DCLGEN -----------------------
+           EXEC SQL
+               INCLUDE TBSINPEP
+           END-EXEC.
+      *-------------- DEFINIMOS LOS CURSORES ---------
+           EXEC SQL
+                DECLARE CRSIN CURSOR FOR
+                  SELECT ID_SINIESTRO
+                        ,FECHA_SINIESTRO
+                        ,CAUSAS
+                        ,ACEPTADO
+                        ,INDEMNIZACION
+                        ,NUMERO_POLIZA
+                        ,DNI_PERITO
+                  FROM SINIESTROS_PEPITO_SEG
+           END-EXEC.
+      *
+      ******************************************************************
+      **      P R O C E D U R E   D I V I S I O N                     **
+      ******************************************************************
+       PROCEDURE DIVISION.
+      *----------------------------------------------------------------*
+           PERFORM 1000-INICIO
+              THRU 1000-INICIO-EXIT
+      *
+           PERFORM 2000-PROCESO
+              THRU 2000-PROCESO-EXIT
+      *
+           PERFORM 3000-FIN
+              THRU 3000-FIN-EXIT
+           .
+      *--------------------- INICIO -----------------------------------*
+       1000-INICIO.
+           INITIALIZE FS-FILE-STATUS
+                      DCLSINIESTROS-PEPITO-SEG
+                      WK-SALIDA
+      *
+           SET NO-ERROR          TO TRUE
+           SET NO-FIN-CURSOR     TO TRUE
+      *
+           PERFORM 1100-ABRIR-SALIDA
+              THRU 1100-ABRIR-SALIDA-EXIT
+      *
+           PERFORM 1200-ABRIR-CURSOR
+              THRU 1200-ABRIR-CURSOR-EXIT
+           .
+       1000-INICIO-EXIT.
+           EXIT.
+      *
+      *--------------------- ABRIR-FICHEROS ---------------------------*
+      *
+       1100-ABRIR-SALIDA.
+      *
+           OPEN OUTPUT FSALIDA
+
+           IF FS-FSALIDA = CA-00
+              CONTINUE
+           ELSE
+              SET SI-ERROR            TO TRUE
+              DISPLAY 'ERROR EN ABRIR-SALIDA'
+              DISPLAY 'FS-FSALIDA: ' FS-FSALIDA
+
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+
+           END-IF
+      *
+           .
+       1100-ABRIR-SALIDA-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      *     1200-ABRIR-CRSIN                                     *
+      ******************************************************************
+      *
+       1200-ABRIR-CURSOR.
+      *
+           SET NO-FIN-CURSOR TO TRUE
+      *
+           DISPLAY 'ABRO CURSOR '
+           EXEC SQL
+               OPEN CRSIN
+           END-EXEC.
+      *
+           EVALUATE SQLCODE
+               WHEN 0
+                    CONTINUE
+               WHEN OTHER
+                    SET SI-ERROR            TO TRUE
+                    MOVE SQLCODE            TO WK-SQLCODE
+                    DISPLAY 'ERROR AL ABRIR CURSOR'
+                    DISPLAY 'SQLCODE: ' WK-SQLCODE
+                    PERFORM 3000-FIN
+                       THRU 3000-FIN-EXIT
+           END-EVALUATE
+      *
+           .
+       1200-ABRIR-CURSOR-EXIT.
+           EXIT.
+      *
+      *--------------------- PROCESO ----------------------------------*
+      ******************************************************************
+      *     2000-PROCESO                                               *
+      ******************************************************************
+       2000-PROCESO.
+      *
+           PERFORM 2100-LEER-CURSOR
+              THRU 2100-LEER-CURSOR-EXIT
+             UNTIL SI-FIN-CURSOR
+      *
+           .
+       2000-PROCESO-EXIT.
+           EXIT.
+      *
+
+      ******************************************************************
+      *  2200-LEER-CURSOR                                              *
+      ******************************************************************
+      *
+       2100-LEER-CURSOR.
+      *
+           INITIALIZE DCLSINIESTROS-PEPITO-SEG
+                      WK-SALIDA
+      *
+           EXEC SQL
+                  FETCH CRSIN
+                  INTO :TB-ID-SINIESTRO
+                      ,:TB-FECHA-SINIESTRO
+                      ,:TB-CAUSAS
+                      ,:TB-ACEPTADO
+                      ,:TB-INDEMNIZACION
+                      ,:TB-NUMERO-POLIZA
+                      ,:TB-DNI-PERITO
+           END-EXEC.
+      *
+           EVALUATE SQLCODE
+               WHEN 0
+               MOVE TB-ID-SINIESTRO      TO S-ID-SINIESTRO
+               MOVE TB-FECHA-SINIESTRO   TO S-FECHA-SINIESTRO
+               MOVE TB-CAUSAS            TO S-CAUSAS
+               MOVE TB-ACEPTADO          TO S-ACEPTADO
+               MOVE TB-INDEMNIZACION     TO S-INDEMNIZACION
+               MOVE TB-NUMERO-POLIZA     TO S-NUMERO-POLIZA
+               MOVE TB-DNI-PERITO        TO S-DNI-PERITO
+                ADD 1                    TO CONT-REG-FETCH
+
+               PERFORM 2200-ESCRIBIR-SALIDA
+                  THRU 2200-ESCRIBIR-SALIDA-EXIT
+
+               WHEN 100
+                    SET SI-FIN-CURSOR       TO TRUE
+                    DISPLAY 'SI-FIN-CURSOR'
+               WHEN OTHER
+                    SET SI-ERROR            TO TRUE
+                    DISPLAY 'ERROR EN LEER CURSOR'
+                    DISPLAY 'SQLCODE: ' WK-SQLCODE
+                    PERFORM 3000-FIN
+                       THRU 3000-FIN-EXIT
+           END-EVALUATE
+           .
+       2100-LEER-CURSOR-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      *     2200-ESCRIBIR-SALIDA                                       *
+      ******************************************************************
+      *
+       2200-ESCRIBIR-SALIDA.
+      *
+           WRITE REG-SAL     FROM WK-SALIDA
+
+           IF FS-FSALIDA = CA-00
+              ADD 1             TO CONT-REG-ESCRITOS
+           ELSE
+              SET SI-ERROR      TO TRUE
+              DISPLAY 'ERROR ESCRIBIENDO LA SALIDA'
+              DISPLAY 'FILE STATUS DE FSALIDA: ' FS-FSALIDA
+      *
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+           END-IF
+      *
+           .
+       2200-ESCRIBIR-SALIDA-EXIT.
+           EXIT.
+      *
+      *--------------------- FIN --------------------------------------*
+       3000-FIN.
+      *
+           PERFORM 3100-CERRAR-FICHEROS
+              THRU 3100-CERRAR-FICHEROS-EXIT
+      *
+           PERFORM 3200-CERRAR-CURSOR
+              THRU 3200-CERRAR-CURSOR-EXIT
+      *
+           PERFORM 3300-GRABAR-ESTADIS
+              THRU 3300-GRABAR-ESTADIS-EXIT
+      *
+           STOP RUN.
+       3000-FIN-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      *     3100-CERRAR-FICHEROS                                       *
+      ******************************************************************
+       3100-CERRAR-FICHEROS.
+      *
+           CLOSE FSALIDA
+      *
+           IF FS-FSALIDA  NOT = CA-00
+              SET SI-ERROR    TO TRUE
+              DISPLAY 'ERROR CERRANDO FSALIDA'
+              DISPLAY 'FILE STATUS DE FSALIDA: ' FS-FSALIDA
+           END-IF
+      *
+           .
+       3100-CERRAR-FICHEROS-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      *     3200-CERRAR-CRSIN                                          *
+      ******************************************************************
+      *
+       3200-CERRAR-CURSOR.
+      *
+           EXEC SQL
+              CLOSE CRSIN
+           END-EXEC.
+      *
+           EVALUATE SQLCODE
+               WHEN 0
+                    CONTINUE
+               WHEN OTHER
+                    MOVE SQLCODE TO WK-SQLCODE
+                    DISPLAY 'ERROR AL CERRAR EL CURSOR'
+                    DISPLAY 'SQLCODE ERROR: ' WK-SQLCODE
+           END-EVALUATE
+      *
+           .
+       3200-CERRAR-CURSOR-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      *     3200-GRABAR-ESTADIS                                        *
+      ******************************************************************
+       3300-GRABAR-ESTADIS.
+      *
+           DISPLAY '***************************'
+           DISPLAY '***   REGISTROS ESCRITOS: *' CONT-REG-ESCRITOS
+           DISPLAY '***************************'
+           DISPLAY '****** REG FETCHEADOS: ****' CONT-REG-FETCH
+           DISPLAY '***************************'
+      *
+           .
+       3300-GRABAR-ESTADIS-EXIT.
+           EXIT.
+      *
+      *----------------------------------------------------------------*

@@ -1,0 +1,510 @@
+      ******************************************************************
+      **      I D E N T I F I C A T I O N   D I V I S I O N           **
+      ******************************************************************
+       IDENTIFICATION DIVISION.
+      *
+       PROGRAM-ID. TRASEGM.
+       AUTHOR. CAJA.
+       DATE-WRITTEN. 06/09/2022.
+       DATE-COMPILED.
+      *
+      ******************************************************************
+      **      E N V I R O N M E N T   D I V I S I O N                 **
+      ******************************************************************
+       ENVIRONMENT DIVISION.
+      *
+       CONFIGURATION SECTION.
+         SOURCE-COMPUTER.  IBM-3090.
+         OBJECT-COMPUTER.  IBM-3090.
+      *
+       SPECIAL-NAMES.
+           DECIMAL-POINT IS COMMA.
+      *
+       INPUT-OUTPUT SECTION.
+      * SE DECLARAN LOS FICHEROS DE ENTRADA Y SALIDA
+      *
+       FILE-CONTROL.
+      *
+           SELECT FENTRAD1
+              ASSIGN TO FENTRAD1
+              FILE STATUS IS FS-FENTRAD1.
+      *
+           SELECT FSALIDA1
+              ASSIGN TO FSALIDA1
+              FILE STATUS IS FS-FSALIDA1.
+      *
+           SELECT FSALIDA2
+              ASSIGN TO FSALIDA2
+              FILE STATUS IS FS-FSALIDA2.
+     *
+      ******************************************************************
+      **      D A T A   D I V I S I O N                               **
+      ******************************************************************
+       DATA DIVISION.
+      *
+       FILE SECTION.
+      *
+       FD FENTRAD1
+            BLOCK CONTAINS 0 RECORDS
+            LABEL RECORD STANDARD
+            RECORDING MODE IS F.
+
+       01 REG-ENT                    PIC X(308).
+      *
+       FD FSALIDA1
+            BLOCK CONTAINS 0 RECORDS
+            LABEL RECORD STANDARD
+            RECORDING MODE IS F.
+
+       01 REG-SAL-CLIENTE            PIC X(308).
+      *
+       FD FSALIDA2
+            BLOCK CONTAINS 0 RECORDS
+            LABEL RECORD STANDARD
+            RECORDING MODE IS F.
+
+       01 REG-SAL-AGENTE             PIC X(112).
+      *
+      ******************************************************************
+      **        W E O R K I N G                                       **
+      ******************************************************************
+       WORKING-STORAGE SECTION.
+      *--------------------- CONSTANTES ALFANUMERICAS -----------------*
+       01 CA-CONSTANTES-ALFANUMERICAS.
+          05 CA-PGM               PIC X(07) VALUE 'TRASEGM'.
+          05 CA-RUT               PIC X(07) VALUE 'RUTAGEN'.
+          05 CA-00                PIC X(02) VALUE '00'.
+          05 CA-10                PIC X(02) VALUE '10'.
+          05 CA-88                PIC X(02) VALUE '88'.
+          05 CA-99                PIC X(02) VALUE '99'.
+      *--------------------- FILE STATUS ------------------------------*
+       01 FS-FILE-STATUS.
+          05 FS-FENTRAD1           PIC X(02).
+          05 FS-FSALIDA1           PIC X(02).
+          05 FS-FSALIDA2           PIC X(02).
+      *--------------------- CONTADORES -------------------------------*
+       01 WK-CONTADORES.
+          05 WK-LEIDOS-1               PIC 9(03) VALUE 000.
+          05 WK-ESCRITOS-1             PIC 9(03) VALUE 000.
+          05 WK-ESCRITOS-2             PIC 9(03) VALUE 000.
+          05 WK-RUT-LEIDA              PIC 9(03) VALUE 000.
+
+      *--------------------- VARIABLES -------
+      *
+      *--------------------- VARIABLES --------------------------------*
+      *VARIABLES DELIMITADORAS PARA UNSTRING
+       01 WK-DELIMITADORES.
+          05 WK-DEL-COMA               PIC X(01) VALUE ','.
+          05 WK-DEL-ESPACIO            PIC X(01) VALUE ' '.
+      *
+       01 WK-AUXILIARES.
+          05 NOMBRE-STRING             PIC X(75) VALUE SPACES.
+          05 DIRECC-STRING             PIC X(100) VALUE SPACES.
+      *
+      * COPYS DE ENTRADA Y SALIDA
+       01 CLIENTES-PEPITO.
+          05 DNI-CL            PIC X(9).
+          05 NOMBRE-CL         PIC X(25).
+          05 APELLIDO-1        PIC X(25).
+          05 APELLIDO-2        PIC X(25).
+          05 CLASE-VIA         PIC X(25).
+          05 NOMBRE-VIA        PIC X(55).
+          05 NUMERO-VIA        PIC S9(9).
+          05 COD-POSTAL        PIC X(5).
+          05 CIUDAD            PIC X(25).
+          05 TELEFONO          PIC X(10).
+          05 OBSERVACIONES     PIC X(100).
+      *
+       01 CLIENTES-MAPFRE.
+          05 DNI-MAP           PIC X(9).
+          05 NOMBRE-MAP        PIC X(75).
+          05 DIRECCION-MAP     PIC X(100).
+          05 TELEFONO-MAP      PIC X(10).
+          05 OBSERVACIONES-MAP PIC X(100).
+      * COPY DE LA RUTINA
+       01 CPY-RUT.
+          05 ENTRADA-AGENT.
+             10 DNI-CL-AGENT         PIC X(09).
+             10 WK-LEER-RUT          PIC 9(03).
+             10 ID-AGENTE            PIC 9(9).
+          05 SALIDA-AGENT.
+             10 NUM-AGE              PIC X(09).
+             10 DNI-AGE              PIC X(09).
+             10 NOMBRE               PIC X(25).
+             10 APE-1                PIC X(25).
+             10 APE-2                PIC X(25).
+             10 TLF                  PIC X(10).
+             10 DNI-CLI              PIC X(9).
+          05 ERRORES.
+             10 RETORNO              PIC X(02).
+             10 SUBRETORNO           PIC X(02).
+             10 ACCION               PIC X(20).
+             10 TABLA                PIC X(20).
+             10 PARRAFO              PIC X(20).
+             10 NOMRUTINA            PIC X(08).
+             10 SQLCODE-E            PIC 9(04).
+      *
+      * ------------------SWITCHES PARA EL PROCESO---------------------*
+       01 SWITCHES.
+          05 SW-ERROR                  PIC X(01) VALUE 'N'.
+             88 SI-ERROR                         VALUE 'S'.
+             88 NO-ERROR                         VALUE 'N'.
+      *
+          05 SW-FIN-FICHERO1           PIC X(01) VALUE 'N'.
+             88 SI-FIN-FICHERO1                  VALUE 'S'.
+             88 NO-FIN-FICHERO1                  VALUE 'N'.
+      *
+      ******************************************************************
+      **      P R O C E D U R E   D I V I S I O N                     **
+      ******************************************************************
+       PROCEDURE DIVISION.
+      *----------------------------------------------------------------*
+           PERFORM 1000-INICIO
+              THRU 1000-INICIO-EXIT
+      *
+           PERFORM 2000-PROCESO
+              THRU 2000-PROCESO-EXIT
+              UNTIL SI-FIN-FICHERO1
+      *
+           PERFORM 3000-FIN
+              THRU 3000-FIN-EXIT
+           .
+      *--------------------- INICIO -----------------------------------*
+       1000-INICIO.
+           INITIALIZE FS-FILE-STATUS
+                      CLIENTES-MAPFRE
+                      CLIENTES-PEPITO
+                      CPY-RUT
+      *
+
+
+      *
+           PERFORM 1050-ABRIR-CLIENTES
+              THRU 1050-ABRIR-CLIENTES-EXIT
+      *
+           PERFORM 1100-ABRIR-SALIDA-CLI
+              THRU 1100-ABRIR-SALIDA-CLI-EXIT
+      *
+           PERFORM 1200-ABRIR-SALIDA-AGEN
+              THRU 1200-ABRIR-SALIDA-AGEN-EXIT
+      *
+           PERFORM 9000-LEER-FENTRAD1
+              THRU 9000-LEER-FENTRAD1-EXIT
+           .
+       1000-INICIO-EXIT.
+           EXIT.
+      *
+      *--------------------- ABRIR-FICHEROS ---------------------------*
+      ******************************************************************
+      *         1100-ABRIR-CLIENTES                                    *
+      ******************************************************************
+      *
+       1050-ABRIR-CLIENTES.
+      *
+           OPEN INPUT FENTRAD1
+
+           IF FS-FENTRAD1 = CA-00
+              CONTINUE
+           ELSE
+              SET SI-ERROR            TO TRUE
+              DISPLAY 'ERROR EN ABRIR-CLIENTES'
+              DISPLAY 'FS-FSALIDA1: ' FS-FENTRAD1
+
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+
+           END-IF
+      *
+           .
+       1050-ABRIR-CLIENTES-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      *         1100-ABRIR-SALIDA-CLI                                  *
+      ******************************************************************
+      *
+       1100-ABRIR-SALIDA-CLI.
+      *
+           OPEN OUTPUT FSALIDA1
+
+           IF FS-FSALIDA1 = CA-00
+              CONTINUE
+           ELSE
+              SET SI-ERROR            TO TRUE
+              DISPLAY 'ERROR EN ABRIR-SALIDA-CLI'
+              DISPLAY 'FS-FSALIDA1: ' FS-FSALIDA1
+
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+
+           END-IF
+      *
+           .
+       1100-ABRIR-SALIDA-CLI-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      *         1200-ABRIR-SALIDA-AGEN                                 *
+      ******************************************************************
+      *
+       1200-ABRIR-SALIDA-AGEN.
+      *
+           OPEN OUTPUT FSALIDA2
+
+           IF FS-FSALIDA2 = CA-00
+              CONTINUE
+           ELSE
+              SET SI-ERROR            TO TRUE
+              DISPLAY 'ERROR EN ABRIR-SALIDA-AGEN'
+              DISPLAY 'FS-FSALIDA2: ' FS-FSALIDA2
+
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+
+           END-IF
+      *
+           .
+       1200-ABRIR-SALIDA-AGEN-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      *     2000-PROCESO                                               *
+      ******************************************************************
+       2000-PROCESO.
+      *
+           PERFORM 2100-LLAMAR-RUTINA
+              THRU 2100-LLAMAR-RUTINA-EXIT
+      *
+           PERFORM 2200-STRING-CLIENTES
+              THRU 2200-STRING-CLIENTES-EXIT
+      *
+           PERFORM 2300-ESCRIBIR-SALIDA-CLI
+              THRU 2300-ESCRIBIR-SALIDA-CLI-EXIT
+      *
+           PERFORM 2400-ESCRIBIR-SAL-AGENT
+              THRU 2400-ESCRIBIR-SAL-AGENT-EXIT
+      *
+           PERFORM 9000-LEER-FENTRAD1
+              THRU 9000-LEER-FENTRAD1-EXIT
+      *
+           .
+       2000-PROCESO-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      *     2200-LLAMAR-RUTINA                                         *
+      ******************************************************************
+      *
+       2100-LLAMAR-RUTINA.
+      *
+           MOVE DNI-CL           TO DNI-CL-AGENT
+           MOVE WK-RUT-LEIDA     TO WK-LEER-RUT
+      *
+           CALL CA-RUT             USING CPY-RUT
+      *
+      *    EVALUATE RETORNO
+      *        WHEN CA-00
+                  DISPLAY 'VOY A LLAMAR A LA RUTINA'
+                  ADD 1 TO WK-RUT-LEIDA
+      *        WHEN OTHER
+      *           DISPLAY 'HA HABIDO UN ERROR EN LA RUTINA AGENTES'
+      *           DISPLAY 'RETORNO         :' RETORNO
+      *           DISPLAY 'SUBRETORNO      :' SUBRETORNO
+      *           DISPLAY 'ACCION          :' ACCION
+      *           DISPLAY 'TABLA           :' TABLA
+      *           DISPLAY 'PARRAFO         :' PARRAFO
+      *           DISPLAY 'SQLCODE         :' SQLCODE-E
+      *           PERFORM 3000-FIN
+      *              THRU 3000-FIN-EXIT
+      *    END-EVALUATE
+           .
+       2100-LLAMAR-RUTINA-EXIT.
+           EXIT
+           .
+      ******************************************************************
+      *     2100-INFORMAR SALIDA                                       *
+      ******************************************************************
+      *
+       2200-STRING-CLIENTES.
+      *
+           DISPLAY 'INFORMAR SALIDA'
+           INITIALIZE NOMBRE-STRING
+                      DIRECC-STRING
+      *
+           STRING NOMBRE-CL DELIMITED BY ' '
+                  ' ' DELIMITED BY SIZE
+                  APELLIDO-1 DELIMITED BY ' '
+                  ' ' DELIMITED BY SIZE
+                  APELLIDO-2 DELIMITED BY SIZE
+                  INTO NOMBRE-STRING
+           END-STRING
+
+           STRING CLASE-VIA DELIMITED BY ' '
+                  ' ' DELIMITED BY SIZE
+                  NOMBRE-VIA DELIMITED BY ' '
+                  ' ' DELIMITED BY SIZE
+                  NUMERO-VIA DELIMITED BY ' '
+                  ' ' DELIMITED BY SIZE
+                  COD-POSTAL DELIMITED BY ' '
+                  ' ' DELIMITED BY SIZE
+                  CIUDAD DELIMITED BY SIZE
+                  INTO DIRECC-STRING
+           END-STRING
+      *
+           .
+       2200-STRING-CLIENTES-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      *     2300-ESCRIBIR-SALIDA-CLI                                   *
+      ******************************************************************
+      *
+       2300-ESCRIBIR-SALIDA-CLI.
+      *
+           MOVE DNI-CL            TO DNI-MAP
+           MOVE NOMBRE-STRING     TO NOMBRE-MAP
+           MOVE DIRECC-STRING     TO DIRECCION-MAP
+           MOVE TELEFONO          TO TELEFONO-MAP
+           MOVE OBSERVACIONES     TO OBSERVACIONES-MAP
+      *
+           WRITE REG-SAL-CLIENTE     FROM CLIENTES-PEPITO
+
+           IF FS-FSALIDA1 = CA-00
+              ADD 1             TO WK-ESCRITOS-1
+           ELSE
+              SET SI-ERROR      TO TRUE
+              DISPLAY 'ERROR ESCRIBIENDO AUTO-MAPFRE'
+              DISPLAY 'FS-FSALIDA1: ' FS-FSALIDA1
+      *
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+           END-IF
+      *
+           .
+       2300-ESCRIBIR-SALIDA-CLI-EXIT.
+           EXIT.
+      ******************************************************************
+      *     2200-ESCRIBIR-SALIDA                                       *
+      ******************************************************************
+      *
+       2400-ESCRIBIR-SAL-AGENT.
+      *
+      *    MOVE DNI-CL-AGENT(1:4)        TO NUM-DNI-4
+      *    COMPUTE ID-AGENTE = NUM-DNI-4 + WK-RUT-LEIDA
+      *
+           MOVE ID-AGENTE         TO NUM-AGE
+           MOVE DNI-CL-AGENT      TO DNI-AGE
+           MOVE NOMBRE-CL         TO NOMBRE
+           MOVE APELLIDO-1        TO APE-1
+           MOVE APELLIDO-2        TO APE-2
+           MOVE TELEFONO          TO TLF
+           MOVE DNI-CL            TO DNI-CLI
+      *
+           WRITE REG-SAL-AGENTE     FROM SALIDA-AGENT
+
+           IF FS-FSALIDA2 = CA-00
+              ADD 1             TO WK-ESCRITOS-2
+           ELSE
+              SET SI-ERROR      TO TRUE
+              DISPLAY 'ERROR ESCRIBIENDO HOGAR-MAPFRE'
+              DISPLAY 'FS-FSALIDA2: ' FS-FSALIDA2
+      *
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+           END-IF
+      *
+           .
+       2400-ESCRIBIR-SAL-AGENT-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      *     9000-LEER-ENTRAD1                                          *
+      ******************************************************************
+      *
+       9000-LEER-FENTRAD1.
+      *
+           INITIALIZE CLIENTES-PEPITO
+      *
+           READ FENTRAD1 INTO CLIENTES-PEPITO
+
+           IF FS-FENTRAD1 = CA-00
+               ADD 1                    TO WK-LEIDOS-1
+           ELSE
+               IF FS-FENTRAD1 = CA-10
+                  SET SI-FIN-FICHERO1   TO TRUE
+               ELSE
+
+                  PERFORM 3000-FIN
+                     THRU 3000-FIN-EXIT
+               END-IF
+            END-IF
+
+
+           .
+       9000-LEER-FENTRAD1-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      *     3000-FIN                                                   *
+      ******************************************************************
+       3000-FIN.
+      *
+           PERFORM 3100-CERRAR-FICHEROS
+              THRU 3100-CERRAR-FICHEROS-EXIT
+      *
+           PERFORM 3200-GRABAR-ESTADIS
+              THRU 3200-GRABAR-ESTADIS-EXIT
+      *
+           STOP RUN.
+       3000-FIN-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      *     3100-CERRAR-FICHEROS                                       *
+      ******************************************************************
+       3100-CERRAR-FICHEROS.
+      *
+           CLOSE FENTRAD1
+                 FSALIDA1
+                 FSALIDA2
+      *
+           IF FS-FENTRAD1  NOT = CA-00
+              SET SI-ERROR    TO TRUE
+              DISPLAY 'ERROR CERRANDO FENTRAD1'
+              DISPLAY 'FS-FENTRAD1: ' FS-FENTRAD1
+           END-IF
+      *
+           IF FS-FSALIDA1  NOT = CA-00
+              SET SI-ERROR    TO TRUE
+              DISPLAY 'ERROR CERRANDO FSALIDA1'
+              DISPLAY 'FS-FSALIDA1: ' FS-FSALIDA1
+           END-IF
+      *
+           IF FS-FSALIDA2  NOT = CA-00
+              SET SI-ERROR    TO TRUE
+              DISPLAY 'ERROR CERRANDO FSALIDA2'
+              DISPLAY 'FS-FSALIDA2: ' FS-FSALIDA2
+           END-IF
+      *
+           .
+       3100-CERRAR-FICHEROS-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      *     3200-GRABAR-ESTADIS                                        *
+      ******************************************************************
+       3200-GRABAR-ESTADIS.
+      *
+           DISPLAY '*******************************'
+           DISPLAY '****ESTADISTICAS SALIDA********' CA-PGM
+           DISPLAY '* REGISTROS LEIDOS F1:        *' WK-LEIDOS-1
+           DISPLAY '* REGISTROS LECTURA RUTINA:   *' WK-RUT-LEIDA
+           DISPLAY '* REGISTROS ESCRITOS S:       *' WK-ESCRITOS-1
+           DISPLAY '* REGISTROS ESCRITOS S:       *' WK-ESCRITOS-2
+
+           DISPLAY '*******************************'
+      *
+           .
+       3200-GRABAR-ESTADIS-EXIT.
+           EXIT.
+      *

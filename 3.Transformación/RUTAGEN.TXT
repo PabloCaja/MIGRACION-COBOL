@@ -1,0 +1,163 @@
+      *****************************************************************
+      *       PGM COBOL DE EJEMPLO - ESQUELETO                         *
+      ******************************************************************
+      *     I D E N T I F I C A T I O N  D I V I S I O N               *
+      *                                                                *
+      * SE DEFINE EL NOMBRE DEL PROGRAMA FUENTE                        *
+      ******************************************************************
+       IDENTIFICATION DIVISION.
+      *
+       PROGRAM-ID.   RUTAGEN.
+       AUTHOR.       CAJA.
+       DATE-WRITTEN. 06/10/2022.
+       DATE-COMPILED.
+      *
+      ******************************************************************
+      *     ENVIRONMENT DIVISION                                       *
+      ******************************************************************
+       ENVIRONMENT DIVISION.
+      *
+       CONFIGURATION SECTION.
+         SOURCE-COMPUTER.  IBM-3090.
+         OBJECT-COMPUTER.  IBM-3090.
+      *
+       SPECIAL-NAMES.
+           DECIMAL-POINT IS COMMA.
+      *
+       INPUT-OUTPUT SECTION.
+      * SE DECLARAN LOS FICHEROS DE ENTRADA Y SALIDA
+      *
+       FILE-CONTROL.
+      * OBLIGATORIO, PARA DECLARAR LOS FICHEROS DE ENTRADA Y SALIDA
+      *
+      ******************************************************************
+      *     DATA DIVISION                                              *
+      ******************************************************************
+       DATA DIVISION.
+      *
+       FILE SECTION.
+      *
+      ******************************************************************
+      *     F I L E  S E C T I O N                                     *
+      ******************************************************************
+      *
+      *
+      ******************************************************************
+      *     W O R K I N G   S T O R A G E                              *
+      ******************************************************************
+       WORKING-STORAGE SECTION.
+      * LUGAR DONDE DECLARAMOS CONSTANTES, VARIABLES, COPYS,SWITCHES,...
+      * CONSTANTES ALFANUMERICAS
+       01 CA-CONSTANTES-ALF.
+          05 CA-PGM                    PIC X(08) VALUE 'RUTAGEN'.
+          05 CA-00                     PIC X(02) VALUE '00'.
+          05 CA-10                     PIC X(02) VALUE '10'.
+          05 CA-88                     PIC X(02) VALUE '88'.
+          05 CA-99                     PIC X(02) VALUE '99'.
+          05 CA-PARR-PRO    PIC X(12) VALUE '2000-PROCESO'.
+          05 CA-DESC-ERR    PIC X(12) VALUE 'ERROR INSERT'.
+          05 SUMA                      PIC 9(01) VALUE 1.
+          05 DNI-AGENT-BASE            PIC 9(08) VALUE 22222222.
+          05 LETRA-DNI-BASE            PIC X(01) VALUE 'F'.
+
+      *
+       01 WK-DELIMITADORES.
+          05 WK-DEL-COMA               PIC X(01) VALUE ','.
+          05 WK-DEL-ESPACIO            PIC X(01) VALUE ' '.
+      *
+      * SWITCHES PARA EL PROCESO
+       01 SWITCHES.
+          05 SW-ERROR                  PIC X(01) VALUE 'N'.
+             88 SI-ERROR                         VALUE 'S'.
+             88 NO-ERROR                         VALUE 'N'.
+      *
+       01 WK-VARIABLES.
+          05 NUM-ALEA                 PIC 9(09).
+          05 NUM-DNI-4                PIC 9(01).
+          05 NUM-DNI-ALEA             PIC 9(08) VALUE 000.
+          05 NUM-DNI-ALEA-TEXT REDEFINES NUM-DNI-ALEA PIC X(08).
+          05 DNI-AGE-STRING           PIC X(09).
+      *
+
+      ******************************************************************
+      *     L I N K A G E   S E C T I O N                              *
+      ******************************************************************
+       LINKAGE SECTION.
+      *
+       01 CPY-RUT.
+          05 ENTRADA-AGENT.
+             10 DNI-CL-AGENT           PIC X(09).
+             10 WK-LEER-RUT            PIC 9(03).
+             10 ID-AGENTE              PIC 9(9).
+          05 SALIDA-AGENT.
+             10 NUM-AGE                PIC X(9).
+             10 DNI-AGE                PIC X(9).
+             10 NOMBRE                 PIC X(25).
+             10 APE-1                  PIC X(25).
+             10 APE-2                  PIC X(25).
+             10 TLF                    PIC X(10).
+             10 DNI-CLI                PIC X(9).
+          05 ERRORES.
+             10 RETORNO                PIC X(02).
+             10 SUBRETORNO             PIC X(02).
+             10 ACCION                 PIC X(20).
+             10 TABLA                  PIC X(20).
+             10 PARRAFO                PIC X(20).
+             10 NOMRUTINA              PIC X(08).
+             10 SQLCODE-E              PIC 9(04).
+      *
+      ******************************************************************
+      *     PROCEDURE DIVISION                                         *
+      ******************************************************************
+       PROCEDURE DIVISION USING CPY-RUT.
+      *
+           PERFORM 1000-INICIO
+              THRU 1000-INICIO-EXIT
+      *
+           PERFORM 2000-PROCESO
+              THRU 2000-PROCESO-EXIT
+      *
+           PERFORM 3000-FIN
+              THRU 3000-FIN-EXIT.
+      *
+      ******************************************************************
+      *     1000-INICIO                                                *
+      ******************************************************************
+       1000-INICIO.
+      *
+           INITIALIZE WK-VARIABLES
+                      SALIDA-AGENT
+      *
+           .
+       1000-INICIO-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      *     2000-PROCESO                                               *
+      ******************************************************************
+       2000-PROCESO.
+      *
+           MOVE DNI-CL-AGENT(1:4)        TO NUM-DNI-4
+           COMPUTE ID-AGENTE = NUM-DNI-4 + 1 + WK-LEER-RUT
+      *
+      *    COMPUTE NUM-ALEA = NUM-DNI-4 + 1 + WK-LEER-RUT;
+      *
+           COMPUTE NUM-DNI-ALEA = (ID-AGENTE + DNI-AGENT-BASE +
+                   WK-LEER-RUT);
+      *
+           STRING NUM-DNI-ALEA-TEXT LETRA-DNI-BASE
+           DELIMITED BY  WK-DEL-ESPACIO INTO DNI-CL-AGENT
+      *
+           .
+       2000-PROCESO-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      *     3000-FIN                                                   *
+      ******************************************************************
+       3000-FIN.
+      *
+           GOBACK.
+       3000-FIN-EXIT.
+           EXIT.
+      *
